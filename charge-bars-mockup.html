@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Charge Bars Mock-up</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #12122a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      font-family: 'Segoe UI', sans-serif;
+    }
+
+    /* ── Card ───────────────────────────────── */
+    .card {
+      background: #1a1a38;
+      border: 1px solid #2e2e58;
+      border-radius: 20px;
+      padding: 28px 28px 28px;
+      min-width: 340px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .card-title {
+      color: #7070a8;
+      font-size: 11px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+    }
+
+    /* ── Sliders ────────────────────────────── */
+    .sliders {
+      width: 100%;
+      display: flex;
+      gap: 12px;
+    }
+    .slider-group {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    .slider-group label { color: #6060a0; font-size: 10px; letter-spacing: 0.3px; text-align: center; }
+    .slider-group input[type=range] { width: 100%; accent-color: #7f5af0; cursor: pointer; }
+    .slider-group .val { color: #a89bff; font-size: 14px; font-weight: 600; }
+
+    /* ── Layout toggle ──────────────────────── */
+    .toggle-row { display: flex; gap: 8px; }
+    .toggle-btn {
+      padding: 6px 16px;
+      border-radius: 8px;
+      border: 1px solid #2e2e58;
+      background: #1e1e3e;
+      color: #6060a0;
+      font-size: 12px;
+      cursor: pointer;
+      letter-spacing: 0.5px;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .toggle-btn:hover { border-color: #5a4aaa; color: #a89bff; }
+    .toggle-btn.active { border-color: #7f5af0; background: #261e4e; color: #c4b5fd; }
+
+    /* Toggle icons */
+    .icon-h { display: flex; flex-direction: row; gap: 2px; align-items: center; }
+    .icon-h span { display: block; width: 14px; height: 5px; border-radius: 2px; background: currentColor; opacity: 0.7; }
+    .icon-v { display: flex; flex-direction: column; gap: 2px; align-items: center; }
+    .icon-v span { display: block; width: 22px; height: 5px; border-radius: 2px; background: currentColor; opacity: 0.7; }
+
+    /* ── Bars wrapper — clickable, no glow ──── */
+    .bars-wrap {
+      min-width: 284px; /* matches sliders/controls area */
+      border-radius: 12px;
+      padding: 16px;
+      background: #141430;
+      border: 1px solid #1e1e44;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    /* ── Shared bar shape ───────────────────── */
+    .bar {
+      border-radius: 5px;
+      background: #1a1640;
+      border: 1px solid #2a2650;
+      overflow: hidden;
+      position: relative;
+      transition: box-shadow 0.08s ease-out;
+    }
+    .bar.empty {
+      background: #221e48;
+      border-color: #32306a;
+      box-shadow: none;
+    }
+    .bar.full {
+      box-shadow: 0 0 18px 6px #7f5af0cc;
+      border-color: #9d7dff;
+    }
+
+    .bar .fill { position: absolute; border-radius: 4px; }
+
+    @keyframes flash-bar {
+      0%   { filter: brightness(2.6); }
+      100% { filter: brightness(1); }
+    }
+    .bar.flash { animation: flash-bar 0.35s ease-out forwards; }
+
+    /* ── Horizontal: pills in a row, fill L→R ── */
+    .bars-h {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: nowrap;
+      gap: 6px;
+    }
+    .bars-h .bar {
+      width: var(--bar-size, 60px);
+      height: 20px;
+    }
+    .bars-h .bar .fill {
+      top: 0; left: 0; bottom: 0;
+      width: var(--pct, 0%);
+      background: linear-gradient(to right, #5a38c8, #8b68f0);
+    }
+    .bars-h .bar.full .fill { width: 100%; }
+
+    /* ── Vertical: pills stacked, fill B→T, consumed T→B ── */
+    .bars-v {
+      display: flex;
+      flex-direction: column-reverse; /* index 0 at bottom */
+      gap: 6px;
+      width: 70px;       /* halfway between H bar width at capacity 5 (65px) and 6 (74px) */
+      margin: 0 auto;    /* center within bars-wrap */
+    }
+    .bars-v .bar {
+      width: 100%;
+      height: var(--bar-size, 20px);
+    }
+    .bars-v .bar .fill {
+      left: 0; right: 0; bottom: 0;
+      height: var(--pct, 0%);
+      background: linear-gradient(to top, #5a38c8, #8b68f0);
+    }
+    .bars-v .bar.full .fill { height: 100%; }
+
+    /* hidden layout */
+    .bars-h, .bars-v { display: none; }
+    .layout-h .bars-h { display: flex; }
+    .layout-v .bars-v { display: flex; }
+
+    /* ── Keybind + charge count row ─────────── */
+    .keybind-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: -6px; /* tuck closer to bars */
+    }
+    .keybind-pill {
+      background: #1e1e3e;
+      border: 1px solid #3a3a6a;
+      border-radius: 8px;
+      color: #8080b8;
+      font-size: 16px;
+      font-weight: 600;
+      padding: 4px 18px;
+      letter-spacing: 1px;
+    }
+    .charge-display {
+      font-size: 28px;
+      font-weight: 700;
+      color: #c4b5fd;
+      line-height: 1;
+      min-width: 1ch;
+    }
+
+    /* ── Divider ────────────────────────────── */
+    .divider { width: 100%; border: none; border-top: 1px solid #252548; }
+
+    /* ── Status text ────────────────────────── */
+    .status-text { color: #6060a0; font-size: 13px; }
+    .status-text strong { color: #a89bff; }
+
+    /* ── Action buttons ─────────────────────── */
+    .action-row { display: flex; gap: 8px; }
+    .action-btn {
+      padding: 6px 16px;
+      border-radius: 8px;
+      border: 1px solid #3a3a6a;
+      background: #1e1e3e;
+      color: #a89bff;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .action-btn:hover { background: #2e2860; }
+  </style>
+</head>
+<body>
+
+<div class="ability-slot layout-h" id="abilitySlot">
+  <div class="card">
+    <div class="card-title">Charge Bar UI</div>
+
+    <!-- Sliders -->
+    <div class="sliders">
+      <div class="slider-group">
+        <label>Max charges</label>
+        <input type="range" id="maxSlider" min="1" max="8" value="3" oninput="setMax(+this.value)">
+        <span class="val" id="maxVal">3</span>
+      </div>
+      <div class="slider-group">
+        <label>Recharge speed</label>
+        <input type="range" id="speedSlider" min="1" max="10" value="5" oninput="setSpeed(+this.value)">
+        <span class="val" id="speedVal">5</span>
+      </div>
+      <div class="slider-group">
+        <label>Recharge time</label>
+        <input type="range" id="timeSlider" min="1" max="10" value="5" oninput="setCapacity(+this.value)">
+        <span class="val" id="timeVal">5</span>
+      </div>
+    </div>
+
+    <!-- Layout toggle -->
+    <div class="toggle-row">
+      <button class="toggle-btn active" id="btnH" onclick="setLayout('h')">
+        <div class="icon-h"><span></span><span></span><span></span></div>
+        Horizontal
+      </button>
+      <button class="toggle-btn" id="btnV" onclick="setLayout('v')">
+        <div class="icon-v"><span></span><span></span><span></span></div>
+        Vertical
+      </button>
+    </div>
+
+    <!-- Bars (clickable to consume) -->
+    <div class="bars-wrap" id="barsWrap" onclick="useCharge()">
+      <div class="bars-h" id="barsH"></div>
+      <div class="bars-v" id="barsV"></div>
+    </div>
+
+    <!-- Q key + charge count directly under bars -->
+    <div class="keybind-row">
+      <div class="keybind-pill">Q</div>
+      <span class="charge-display" id="chargeDisplay">3</span>
+    </div>
+
+    <hr class="divider">
+
+    <div class="status-text" id="statusText">3 / 3 charges</div>
+
+    <div class="action-row">
+      <button class="action-btn" onclick="event.stopPropagation(); useCharge()">Use charge</button>
+      <button class="action-btn" onclick="event.stopPropagation(); refillAll()">Refill all</button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  let maxCharges       = 3;
+  let fillSpeed        = 5;   // fill rate
+  let barCapacity      = 5;   // visual size + time denominator
+  let charges          = 3;
+  let rechargeProgress = 0;
+  let lastTime         = null;
+
+  const slot          = document.getElementById('abilitySlot');
+  const barsH         = document.getElementById('barsH');
+  const barsV         = document.getElementById('barsV');
+  const statusEl      = document.getElementById('statusText');
+  const chargeDisplay = document.getElementById('chargeDisplay');
+
+  // Actual seconds per charge = barCapacity / fillSpeed * 2
+  function actualRechargeTime() { return barCapacity / fillSpeed * 2; }
+
+  function buildBars() {
+    barsH.innerHTML = '';
+    barsV.innerHTML = '';
+    for (let i = 0; i < maxCharges; i++) {
+      [barsH, barsV].forEach(container => {
+        const b = document.createElement('div');
+        b.className = 'bar';
+        b.innerHTML = '<div class="fill"></div>';
+        container.appendChild(b);
+      });
+    }
+    applyBarSize();
+  }
+
+  function applyBarSize() {
+    // Horizontal: bar width. at capacity 1 → 29px, capacity 5 → 65px
+    barsH.style.setProperty('--bar-size', (20 + barCapacity * 9) + 'px');
+    // Vertical: bar height. at capacity 1 → 20px (matches H bar height), capacity 5 → 56px
+    barsV.style.setProperty('--bar-size', (11 + barCapacity * 9) + 'px');
+  }
+
+  function flashBar(index) {
+    [barsH, barsV].forEach(container => {
+      const b = container.children[index];
+      if (!b) return;
+      b.classList.remove('flash');
+      void b.offsetWidth;
+      b.classList.add('flash');
+      b.addEventListener('animationend', () => b.classList.remove('flash'), { once: true });
+    });
+  }
+
+  function updateBars(container) {
+    const bars = container.querySelectorAll('.bar');
+    bars.forEach((b, i) => {
+      b.className = 'bar';
+      b.querySelector('.fill').style.removeProperty('--pct');
+      if (i < charges) {
+        b.classList.add('full');
+      } else if (i === charges && charges < maxCharges) {
+        b.classList.add('recharging');
+        b.querySelector('.fill').style.setProperty('--pct', (rechargeProgress * 100).toFixed(2) + '%');
+      } else {
+        b.classList.add('empty');
+      }
+    });
+  }
+
+  function render() {
+    updateBars(barsH);
+    updateBars(barsV);
+
+    // Charge count — hidden at zero
+    chargeDisplay.textContent = charges > 0 ? charges : '';
+
+    const rt = actualRechargeTime();
+    if (charges >= maxCharges) {
+      statusEl.innerHTML = `<strong>${charges} / ${maxCharges}</strong> charges`;
+    } else {
+      const secs = (rt * (1 - rechargeProgress)).toFixed(1);
+      statusEl.innerHTML = `${charges} / ${maxCharges} charges — next in <strong>${secs}s</strong>`;
+    }
+  }
+
+  function tick(ts) {
+    if (!lastTime) lastTime = ts;
+    const dt = (ts - lastTime) / 1000;
+    lastTime = ts;
+
+    if (charges < maxCharges) {
+      rechargeProgress += dt / actualRechargeTime();
+      if (rechargeProgress >= 1) {
+        rechargeProgress = charges + 1 < maxCharges ? rechargeProgress - 1 : 0;
+        flashBar(charges);
+        charges++;
+      }
+    } else {
+      rechargeProgress = 0;
+    }
+
+    render();
+    requestAnimationFrame(tick);
+  }
+
+  function useCharge() {
+    if (charges <= 0) return;
+    charges--;
+    render();
+  }
+
+  function refillAll() {
+    charges = maxCharges;
+    rechargeProgress = 0;
+    render();
+  }
+
+  function setMax(v) {
+    maxCharges = v;
+    charges = Math.min(charges, maxCharges);
+    document.getElementById('maxVal').textContent = v;
+    buildBars();
+    render();
+  }
+
+  function setSpeed(v) {
+    fillSpeed = v;
+    document.getElementById('speedVal').textContent = v;
+  }
+
+  function setCapacity(v) {
+    barCapacity = v;
+    document.getElementById('timeVal').textContent = v;
+    applyBarSize();
+  }
+
+  function setLayout(l) {
+    slot.classList.toggle('layout-h', l === 'h');
+    slot.classList.toggle('layout-v', l === 'v');
+    document.getElementById('btnH').classList.toggle('active', l === 'h');
+    document.getElementById('btnV').classList.toggle('active', l === 'v');
+  }
+
+  buildBars();
+  render();
+  requestAnimationFrame(tick);
+</script>
+</body>
+</html>
